@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Produtos Sugeridos — Oasipor</title>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.5/babel.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--brand:#1c56a3;--bg:#f1f3f6;--card:#fff;--border:#e2e5ea;--text:#1a1d23;--sub:#6e7582;--r:10px;--green:#1b873f;--orange:#d47213;--red:#c4302b;--purple:#6c3fb5}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;font-size:13px}
+input,select,textarea,button{font-family:inherit;font-size:inherit}
+@keyframes slideIn{from{transform:translateX(100%);opacity:.8}to{transform:translateX(0);opacity:1}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand)!important;box-shadow:0 0 0 3px #1c56a318}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#c8ccd4;border-radius:3px}
+table{border-collapse:collapse;width:100%}
+tbody tr{transition:background .08s}tbody tr:hover{background:#f0f4ff!important}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;letter-spacing:.2px}
+.card-stat{background:var(--card);border-radius:var(--r);padding:12px 16px;border:1.5px solid var(--border);cursor:pointer;text-align:left;transition:all .15s;flex:1}
+.card-stat:hover{box-shadow:0 4px 16px #0001;transform:translateY(-1px)}
+.card-stat.active{border-width:2px}
+.inp{width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;background:#fff;transition:border .15s,box-shadow .15s}
+.btn{padding:7px 14px;border-radius:7px;font-weight:700;cursor:pointer;border:none;transition:all .12s;font-size:12px}
+.btn:hover{filter:brightness(1.05)}
+.sec{margin-bottom:14px;background:#fff;border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.sec-head{padding:8px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.sec-body{padding:12px 14px}
+.lbl{display:block;font-size:8.5px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px}
+.field-val{font-size:12px;font-weight:600}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useCallback}=React;
+
+const STATUSES=[
+  {key:"rascunho",label:"Rascunho",color:"#78909c",bg:"#eceff1"},
+  {key:"em_analise",label:"Em Análise",color:"var(--brand)",bg:"#e3f2fd"},
+  {key:"enviado",label:"Enviado",color:"var(--purple)",bg:"#ede7f6"},
+  {key:"pendente",label:"Pendente",color:"var(--orange)",bg:"#fff3e0"},
+  {key:"aprovado",label:"Aprovado",color:"var(--green)",bg:"#e8f5e9"},
+  {key:"rejeitado",label:"Rejeitado",color:"var(--red)",bg:"#ffebee"},
+];
+const sMap=Object.fromEntries(STATUSES.map(s=>[s.key,s]));
+const ACTIVE_KEYS=["rascunho","em_analise","enviado","pendente"];
+const GROUPS=["Taças","Campos Cirúrgicos","Campos Especialidade","Seringas","Batas","Coberturas","Agulhas","Luvas","Compressas","Adesivos","Acessórios"];
+
+const mk=(id,nm,co,grp,typ,by,cr,dl,st,ns,qty,sups,sel,prj,cl,pk,rpk,np,ref,desc,photos,notes)=>({id,name:nm,company:co,group:grp,type:typ,suggestedBy:by,created:cr,deadline:dl,status:st,needsSample:ns,qty,suppliers:sups||[],selectedSupplier:sel??-1,project:prj,client:cl,pack:pk,refPack:rpk||"",nProjeto:np,refInterna:ref||"",description:desc||"",photos:photos||[],notes:notes||""});
+function isUrgent(p){const d=daysUntil(p.deadline);return d!==null&&d<=7}
+
+const INIT=[
+  mk(1,"Thread Cutting Knife","Oasipor","Acessórios","Descartável","Joao Ribeiro","26/02/2026","","rascunho",null,1,[],-1,"Packs ULS Coimbra","ULS Coimbra","Pack Angiografia","PK-ANG-0041","PRJ-2026-00487","","Faca descartável para corte de fio cirúrgico",["https://placehold.co/200x150/e3f2fd/1565c0?text=Thread+Knife"],""),
+  mk(15,"Seringa 3P 20ml","Oasipor","Seringas","3 Peças","Joao Ribeiro","26/02/2026","","rascunho",null,2,[],-1,"Packs ULS Coimbra","ULS Coimbra","Pack Angiografia","PK-ANG-0041","PRJ-2026-00487","","Seringa luer lock 3 peças 20ml",[],""),
+  mk(16,"Taça Contraste 250ml","Oasipor","Taças","Contraste","Joao Ribeiro","26/02/2026","","rascunho",null,1,[],-1,"Packs ULS Coimbra","ULS Coimbra","Pack Angiografia","PK-ANG-0041","PRJ-2026-00487","","Taça graduada 250ml para contraste",[],""),
+  mk(2,"Taça Fio-Guia 3000ml","Oasipor","Taças","Fio-Guia","Alexandra Vidal","26/02/2026","10/03/2026","em_analise",true,1,[
+    {name:"MedDevice GmbH",ref:"MD-TFG-3000",price:4.20,lead:"30d",moq:100,notes:"Cotação 26/02"},
+    {name:"B. Braun",ref:"BB-4401",price:3.85,lead:"21d",moq:200,notes:"Melhor preço"},
+    {name:"SinoMed",ref:"SM-TFG-30",price:2.90,lead:"45d",moq:500,notes:"MOQ elevado"},
+  ],-1,"Packs ULS Coimbra","ULS Coimbra","Pack Neuroradiologia","PK-NRD-0012","PRJ-2026-00487","","Taça com guia para fio 3000ml, transparente",["https://placehold.co/200x150/fff3e0/e65100?text=Taça+3000ml","https://placehold.co/200x150/fce4ec/c62828?text=Detalhe"],"3 cotações pedidas"),
+  mk(3,"Agulha punção femoral 18G","Oasipor","Agulhas","Punção","Joana Romão","26/02/2026","20/03/2026","enviado",true,2,[
+    {name:"B. Braun",ref:"REF-4502187",price:2.45,lead:"21d",moq:100,notes:"Habitual"},
+    {name:"Teleflex",ref:"TF-18G70",price:2.80,lead:"28d",moq:50,notes:""},
+  ],0,"Packs CUF Descobertas","CUF Descobertas","Pack Angiografia","PK-ANG-0058","PRJ-2026-00512","OAS-AGF-001","Agulha de punção femoral 1.3x70mm 18G com ponta biselada",["https://placehold.co/200x150/e8f5e9/2e7d32?text=Agulha+18G"],""),
+  mk(4,"Shoe Covers","Farkon Ltd","Acessórios","Proteção","Mira","26/02/2026","25/03/2026","em_analise",true,50,[
+    {name:"Farkon Ltd",ref:"FK-SC-100",price:0.35,lead:"14d",moq:1000,notes:""},
+  ],0,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Cirurgia Geral","PK-CIR-0103","PRJ-2026-00498","OAS-SHC-001","Cobre-sapatos descartável não tecido, anti-derrapante",[],"Amostra enviada"),
+  mk(17,"Toalha Absorvente Mãos","Oasipor","Acessórios","Absorvente","Alexandra Vidal","26/02/2026","25/03/2026","em_analise",true,4,[],-1,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Cirurgia Geral","PK-CIR-0103","PRJ-2026-00498","","Toalha absorvente estéril para secagem de mãos",[],""),
+  mk(5,"Taça Redonda 60ml Lidocaine","Oasipor","Taças","Redonda","Joao Ribeiro","25/02/2026","20/03/2026","enviado",true,5,[
+    {name:"SinoMed",ref:"SM-MC60-LID",price:0.18,lead:"45d",moq:5000,notes:"Aprovada"},
+    {name:"MedLine",ref:"ML-CUP60G",price:0.24,lead:"30d",moq:1000,notes:""},
+  ],0,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Angiografia","PK-ANG-0071","PRJ-2026-00498","OAS-CUP-001","Taça redonda 60ml com marcação Lidocaine, graduada",["https://placehold.co/200x150/e3f2fd/1565c0?text=Taça+60ml"],""),
+  mk(6,"Taça Redonda 60ml Nitroglycerine","Oasipor","Taças","Redonda","Joao Ribeiro","25/02/2026","20/03/2026","em_analise",true,5,[
+    {name:"SinoMed",ref:"SM-MC60-NIT",price:0.18,lead:"45d",moq:5000,notes:""},
+  ],0,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Angiografia","PK-ANG-0071","PRJ-2026-00498","OAS-CUP-002","Taça redonda 60ml com marcação Nitroglycerine",[],""),
+  mk(7,"Campo Adesivado 75x90","Oasipor","Campos Cirúrgicos","Adesivado Simples","Alexandra Vidal","25/02/2026","15/03/2026","aprovado",false,5,[
+    {name:"Oasipor",ref:"MW-CA-7590",price:0.85,lead:"7d",moq:100,notes:"Produção interna"},
+  ],0,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Cardiologia","PK-CAR-0029","PRJ-2026-00498","OAS-CAS-001","Campo cirúrgico adesivado simples 75x90cm",[],""),
+  mk(8,"Seringa 2P 10ml Lidocaine","Oasipor","Seringas","2 Peças","Alexandra Vidal","25/02/2026","18/03/2026","pendente",false,3,[
+    {name:"MedLine",ref:"ML-SYR-2P10",price:0.42,lead:"21d",moq:500,notes:"Rejeitado — specs"},
+  ],0,"Packs CUF Descobertas","CUF Descobertas","Pack Ortopedia","PK-ORT-0017","PRJ-2026-00512","OAS-SER-001","Seringa 2 peças luer slip 10ml com marcação Lidocaine",[],"Precisa nova sugestão"),
+  mk(9,"Bata Reforçada Spunlace L","Oasipor","Batas","Reforçada","Joana Romão","24/02/2026","30/03/2026","aprovado",false,2,[
+    {name:"Oasipor",ref:"MW-SG-RL",price:3.80,lead:"7d",moq:50,notes:""},
+  ],0,"Packs Hospital Braga","Hospital de Braga","Pack Cirurgia Geral","PK-CIR-0088","PRJ-2026-00531","OAS-BAT-001","Bata cirúrgica reforçada spunlace tamanho L, estéril",["https://placehold.co/200x150/ede7f6/6a1b9a?text=Bata+L"],""),
+  mk(10,"Agulha Spinal 25G 90mm","Oasipor","Agulhas","Spinal","Joana Romão","24/02/2026","","rascunho",null,1,[],-1,"Packs Hospital Braga","Hospital de Braga","Pack Anestesia","PK-ANE-0005","PRJ-2026-00531","","Agulha spinal ponta pencil-point 25G 90mm",[],"Urgente"),
+  mk(11,"Campo Fenestrado Oftalmo","Oasipor","Campos Especialidade","Fenestrado","Alexandra Vidal","23/02/2026","30/03/2026","aprovado",false,1,[
+    {name:"Oasipor",ref:"MW-CFO-01",price:1.90,lead:"7d",moq:100,notes:""},
+  ],0,"Packs ULS Coimbra","ULS Coimbra","Pack Oftalmologia","PK-OFT-0003","PRJ-2026-00487","OAS-CEF-001","Campo fenestrado oftalmologia com bolsa recolha fluidos",[],""),
+  mk(12,"Compressas Gaze 10x10","Oasipor","Compressas","Não Tecida","Alexandra Vidal","22/02/2026","","rascunho",null,10,[],-1,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Cirurgia Geral","PK-CIR-0103","PRJ-2026-00498","","Compressas gaze não tecida 10x10cm, 4 camadas",[],""),
+  mk(13,"Cobertura Mesa Mayo","Oasipor","Coberturas","Mayo","Joao Ribeiro","22/02/2026","20/03/2026","pendente",false,2,[
+    {name:"SinoMed",ref:"SM-CMY-01",price:0.55,lead:"45d",moq:2000,notes:"Qualidade insuficiente"},
+  ],0,"Packs Hospital Braga","Hospital de Braga","Pack Cirurgia Geral","PK-CIR-0088","PRJ-2026-00531","","Cobertura absorvente para mesa mayo, impermeável",[],"Nova sugestão necessária"),
+  mk(14,"Tubo Aspiração 3m","Oasipor","Acessórios","Aspiração","Joao Ribeiro","20/02/2026","10/03/2026","rejeitado",false,1,[
+    {name:"SinoMed",ref:"SM-TA-3M",price:1.10,lead:"45d",moq:500,notes:"Sem alternativa viável"},
+  ],0,"Packs Hospital Braga","Hospital de Braga","Pack Cirurgia Geral","PK-CIR-0088","PRJ-2026-00531","","Tubo de aspiração flexível 3 metros com conector universal",[],"Sem fornecedor alternativo — rejeitado"),
+];
+
+function daysUntil(dd){if(!dd)return null;const p=dd.split("/");const d=new Date(+p[2],+p[1]-1,+p[0]);const n=new Date();n.setHours(0,0,0,0);return Math.ceil((d-n)/864e5)}
+function dayColor(d){if(d==null)return"var(--sub)";if(d<=3)return"var(--red)";if(d<=7)return"var(--orange)";if(d<=14)return"#c49000";return"var(--green)"}
+
+function Badge({status}){const s=sMap[status]||STATUSES[0];return <span className="pill" style={{background:s.bg,color:s.color,border:`1px solid ${s.color}20`}}>{s.label}</span>}
+
+/* ═══ DETAIL PANEL ═══ */
+function DetailPanel({product:init,onClose,onUpdate}){
+  const[p,setP]=useState({...init});
+  const[addMode,setAddMode]=useState(false);
+  const[nS,setNS]=useState({name:"",ref:"",price:"",lead:"",moq:"",notes:""});
+  useEffect(()=>{setP({...init});setAddMode(false)},[init]);
+  const set=(k,v)=>{const u={...p,[k]:v};setP(u);onUpdate(u)};
+  const s=sMap[p.status];const days=daysUntil(p.deadline);
+  const selSup=p.selectedSupplier>=0?p.suppliers[p.selectedSupplier]:null;
+
+  const addSup=()=>{if(!nS.name.trim())return;const su={...nS,price:nS.price?+nS.price:null};const u={...p,suppliers:[...p.suppliers,su]};setP(u);onUpdate(u);setNS({name:"",ref:"",price:"",lead:"",moq:"",notes:""});setAddMode(false)};
+  const rmSup=i=>{const ss=[...p.suppliers];ss.splice(i,1);const sel=p.selectedSupplier===i?-1:p.selectedSupplier>i?p.selectedSupplier-1:p.selectedSupplier;const u={...p,suppliers:ss,selectedSupplier:sel};setP(u);onUpdate(u)};
+  const pickSup=i=>set("selectedSupplier",p.selectedSupplier===i?-1:i);
+
+  return <div style={{position:"fixed",inset:0,zIndex:1000,display:"flex",justifyContent:"flex-end"}}>
+    <div onClick={onClose} style={{position:"absolute",inset:0,background:"#0003",backdropFilter:"blur(4px)",animation:"fadeIn .15s"}}/>
+    <div style={{position:"relative",width:520,maxWidth:"95vw",background:"var(--bg)",height:"100%",overflowY:"auto",boxShadow:"-8px 0 40px #0002",animation:"slideIn .2s ease"}}>
+      <div style={{position:"sticky",top:0,zIndex:2,background:"#fff",borderBottom:"1px solid var(--border)"}}>
+        <div style={{padding:"14px 18px 12px",display:"flex",gap:10}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:10,color:"var(--sub)",fontWeight:500,marginBottom:2}}>{p.company} · <span style={{color:"var(--brand)",fontWeight:700}}>{p.nProjeto}</span></div>
+            <h2 style={{fontSize:16,fontWeight:800,lineHeight:1.2}}>{p.name}</h2>
+            <div style={{display:"flex",gap:5,marginTop:5,flexWrap:"wrap",alignItems:"center"}}>
+              <Badge status={p.status}/>
+              <span style={{fontSize:9,background:"#f3f4f6",padding:"2px 7px",borderRadius:20,color:"var(--sub)",fontWeight:600}}>{p.group} · {p.type}</span>
+              {isUrgent(p)&&<span style={{fontSize:9,background:"#fff3e0",color:"var(--orange)",padding:"2px 7px",borderRadius:20,fontWeight:700}}>⚡ Urgente</span>}
+              {p.status==="enviado"&&<span style={{fontSize:9,background:"#ede7f6",color:"var(--purple)",padding:"2px 7px",borderRadius:20,fontWeight:700}}>⏳ Aguarda feedback</span>}
+            </div>
+          </div>
+          <button onClick={onClose} style={{width:28,height:28,borderRadius:7,border:"1px solid var(--border)",background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"var(--sub)"}}>✕</button>
+        </div>
+      </div>
+      <div style={{padding:"12px 14px 90px"}}>
+        <div style={{display:"flex",gap:8,marginBottom:12}}>
+          <div style={{flex:1,background:"#fff",borderRadius:8,padding:"8px 12px",border:"1px solid var(--border)"}}><div className="lbl">Solicitado</div><div style={{fontSize:14,fontWeight:700}}>{p.created}</div></div>
+          <div style={{width:80,background:"#fff",borderRadius:8,padding:"8px 12px",border:"1px solid var(--border)",textAlign:"center"}}><div className="lbl">Dias</div><div style={{fontSize:20,fontWeight:800,color:dayColor(days),lineHeight:1}}>{days!=null?days:"—"}</div></div>
+        </div>
+        <div className="sec">
+          <div className="sec-head" style={{background:"#f8fafc"}}><span style={{fontSize:10,fontWeight:700,color:"var(--brand)",letterSpacing:.5}}>INFORMAÇÃO COMERCIAL</span></div>
+          <div className="sec-body">
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:"8px 14px",marginBottom:10}}>
+              {[["Projeto",p.project],["Cliente",p.client],["Pack",p.pack],["Ref. Pack",p.refPack],["Sugerido por",p.suggestedBy],["Grupo",p.group],["Tipo",p.type]].map(([l,v])=><div key={l}><div className="lbl">{l}</div><div className="field-val" style={l==="Ref. Pack"?{fontFamily:"monospace",color:"var(--purple)"}:{}}>{v||"—"}</div></div>)}
+            </div>
+            <div style={{borderTop:"1px solid var(--border)",paddingTop:10,marginBottom:10}}>
+              <div className="lbl">Descrição</div>
+              <textarea value={p.description} onChange={e=>set("description",e.target.value)} placeholder="Breve descrição do produto..." rows={2} className="inp" style={{marginTop:3,resize:"vertical",lineHeight:1.4,fontSize:12}}/>
+            </div>
+            {/* Fotos / Anexos */}
+            <div style={{borderTop:"1px solid var(--border)",paddingTop:10,marginBottom:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}><div className="lbl" style={{marginBottom:0}}>Fotos / Anexos</div></div>
+              {p.photos.length>0?<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{p.photos.map((ph,i)=><div key={i} style={{position:"relative",width:80,height:60,borderRadius:6,overflow:"hidden",border:"1px solid var(--border)",cursor:"pointer"}} onClick={()=>window.open(ph,"_blank")}><img src={ph} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/></div>)}</div>:<div style={{padding:10,textAlign:"center",background:"#fafafa",borderRadius:8,border:"1.5px dashed var(--border)",fontSize:10,color:"var(--sub)"}}>Sem anexos</div>}
+            </div>
+            <div style={{borderTop:"1px solid var(--border)",paddingTop:10,marginBottom:10}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}><span style={{fontSize:9,fontWeight:700,color:"var(--brand)",letterSpacing:.5,textTransform:"uppercase"}}>A confirmar pelo comercial</span></div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+                <div><div className="lbl">Deadline</div><input value={p.deadline||""} onChange={e=>set("deadline",e.target.value)} placeholder="dd/mm/aaaa" className="inp" style={{marginTop:3,fontSize:12,fontWeight:700,color:dayColor(days)}}/></div>
+                <div><div className="lbl">Amostras</div><div style={{display:"flex",gap:3,marginTop:3,height:32}}>{[true,false].map(v=><button key={v+""} onClick={()=>set("needsSample",v)} className="btn" style={{flex:1,fontSize:11,padding:"5px 10px",background:p.needsSample===v?(v?"var(--orange)":"var(--green)"):"#f3f4f6",color:p.needsSample===v?"#fff":"var(--sub)",border:"1.5px solid "+(p.needsSample===v?"transparent":"var(--border)")}}>{v?"Sim":"Não"}</button>)}</div></div>
+                <div><div className="lbl">Quantidade</div>{p.needsSample!==null?<input type="number" min="0" value={p.qty} onChange={e=>set("qty",+e.target.value||0)} className="inp" style={{marginTop:3,fontSize:14,fontWeight:700,textAlign:"center"}}/>:<div style={{marginTop:3,padding:"7px 10px",height:32,display:"flex",alignItems:"center",justifyContent:"center",background:"#fafafa",borderRadius:7,border:"1.5px dashed var(--border)",fontSize:10,color:"var(--sub)"}}>Definir amostras</div>}</div>
+              </div>
+            </div>
+            <div><div className="lbl">Notas</div><textarea value={p.notes} onChange={e=>set("notes",e.target.value)} placeholder="Notas, observações..." rows={2} className="inp" style={{marginTop:3,resize:"vertical",lineHeight:1.4}}/></div>
+          </div>
+        </div>
+        <div className="sec">
+          <div className="sec-head" style={{background:"#f5f3ff"}}><span style={{fontSize:10,fontWeight:700,color:"var(--purple)",letterSpacing:.5}}>PROCUREMENT</span>{!addMode&&<button onClick={()=>setAddMode(true)} className="btn" style={{fontSize:9,padding:"3px 10px",background:"#ede7f6",color:"var(--purple)"}}>+ Fornecedor</button>}</div>
+          <div className="sec-body">
+            <div style={{marginBottom:10}}><div className="lbl">Referência Interna Oasipor</div><input value={p.refInterna} onChange={e=>set("refInterna",e.target.value)} placeholder="OAS-XXX-000" className="inp" style={{marginTop:3,fontFamily:"monospace",fontWeight:700,color:"var(--brand)"}}/></div>
+            {p.suppliers.length>0&&<div style={{border:"1px solid var(--border)",borderRadius:8,overflow:"hidden",marginBottom:8}}>
+              <table><thead><tr style={{background:"#f8f9fa"}}>
+                {["Fornecedor","Ref.","€/un","Lead","MOQ",""].map((h,i)=><th key={i} style={{padding:"6px 8px",textAlign:i===2?"right":i===5?"right":"left",fontSize:8.5,fontWeight:700,color:"var(--sub)",textTransform:"uppercase",letterSpacing:.5,width:i===5?70:undefined}}>{h}</th>)}
+              </tr></thead><tbody>{p.suppliers.map((sup,i)=>{
+                const isSel=p.selectedSupplier===i;
+                return <tr key={i} style={{background:isSel?"#eef3fa":"#fff",borderTop:"1px solid #f0f1f3"}}>
+                  <td style={{padding:"6px 8px"}}><div style={{fontWeight:isSel?700:600,fontSize:12,color:isSel?"var(--brand)":"var(--text)"}}>{sup.name}</div>{sup.notes&&<div style={{fontSize:9,color:"var(--sub)",fontStyle:"italic",marginTop:1}}>{sup.notes}</div>}</td>
+                  <td style={{padding:"6px 8px",fontFamily:"monospace",fontSize:10,color:"#666"}}>{sup.ref||"—"}</td>
+                  <td style={{padding:"6px 8px",textAlign:"right",fontWeight:700,fontSize:12,color:sup.price?"var(--green)":"var(--sub)"}}>{sup.price?"€"+Number(sup.price).toFixed(2):"—"}</td>
+                  <td style={{padding:"6px 8px",fontSize:11,color:"#555"}}>{sup.lead||"—"}</td>
+                  <td style={{padding:"6px 8px",fontSize:11,color:"#555"}}>{sup.moq||"—"}</td>
+                  <td style={{padding:"4px 4px",textAlign:"right"}}><div style={{display:"flex",gap:2,justifyContent:"flex-end"}}><button onClick={()=>pickSup(i)} className="btn" style={{padding:"3px 8px",fontSize:9,background:isSel?"var(--brand)":"#e8f5e9",color:isSel?"#fff":"var(--green)"}}>{isSel?"✓":"Sel."}</button><button onClick={()=>rmSup(i)} className="btn" style={{padding:"3px 5px",fontSize:9,background:"#ffebee",color:"var(--red)"}}>✕</button></div></td>
+                </tr>})}</tbody></table>
+            </div>}
+            {p.suppliers.length===0&&!addMode&&<div style={{padding:14,textAlign:"center",background:"#fafafa",borderRadius:8,border:"1.5px dashed var(--border)",fontSize:11,color:"var(--sub)",marginBottom:8}}>Sem fornecedores</div>}
+            {addMode&&<div style={{border:"1.5px solid var(--purple)",borderRadius:8,padding:10,background:"#faf8ff",marginBottom:8}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"6px 8px"}}>
+                {[["Nome *","name","Nome"],["Ref.","ref","Ref."],["Preço €","price","0.00"],["Lead","lead","21d"],["MOQ","moq","Qtd"],["Notas","notes","Obs."]].map(([l,k,ph])=><div key={k}><div className="lbl">{l}</div><input value={nS[k]} onChange={e=>setNS({...nS,[k]:e.target.value})} placeholder={ph} className="inp" style={{marginTop:2,fontSize:11,...(k==="ref"?{fontFamily:"monospace"}:{})}}/></div>)}
+              </div>
+              <div style={{display:"flex",gap:6,marginTop:8}}><button onClick={addSup} className="btn" style={{background:"var(--purple)",color:"#fff"}}>✓ Adicionar</button><button onClick={()=>setAddMode(false)} className="btn" style={{background:"#f3f4f6",color:"var(--sub)"}}>Cancelar</button></div>
+            </div>}
+          </div>
+        </div>
+      </div>
+      <div style={{position:"sticky",bottom:0,background:"#fff",borderTop:"1px solid var(--border)",padding:"8px 16px",display:"flex",gap:6}}>
+        {p.status==="rascunho"&&<button onClick={()=>set("status","em_analise")} className="btn" style={{flex:1,background:"var(--brand)",color:"#fff"}}>◎ Iniciar Análise</button>}
+        {p.status==="em_analise"&&<button onClick={()=>set("status","enviado")} className="btn" style={{flex:1,background:"var(--purple)",color:"#fff"}}>↑ Enviar ao Projeto</button>}
+        {p.status==="enviado"&&<div style={{flex:1,textAlign:"center",padding:8,fontSize:12,fontWeight:600,color:"var(--purple)",background:"#ede7f6",borderRadius:7}}>⏳ Aguarda feedback do projeto</div>}
+        {p.status==="pendente"&&<button onClick={()=>set("status","em_analise")} className="btn" style={{flex:1,background:"var(--brand)",color:"#fff"}}>↺ Nova Análise — Sugerir alternativa</button>}
+        {p.status==="aprovado"&&<div style={{flex:1,textAlign:"center",padding:8,fontSize:12,fontWeight:700,color:"var(--green)",background:"#e8f5e9",borderRadius:7}}>✓ Aprovado</div>}
+        {p.status==="rejeitado"&&<div style={{flex:1,textAlign:"center",padding:8,fontSize:12,fontWeight:700,color:"var(--red)",background:"#ffebee",borderRadius:7}}>✕ Rejeitado — Sem alternativa</div>}
+      </div>
+    </div>
+  </div>
+}
+
+/* ═══ MAIN ═══ */
+function App(){
+  const[products,setProducts]=useState(INIT);
+  const[search,setSearch]=useState("");const[grpF,setGrpF]=useState("");const[stF,setStF]=useState("");
+  const[detail,setDetail]=useState(null);const[view,setView]=useState("ativos");
+  const[sort,setSort]=useState({key:"deadline",dir:"asc"});
+
+  function exportExcel(){
+    const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.aoa_to_sheet([]);
+
+    // Row 1: Title
+    const viewLabel=view==="ativos"?"Ativos":view==="aprovados"?"Aprovados":"Rejeitados";
+    XLSX.utils.sheet_add_aoa(ws,[["Produtos Sugeridos \u2014 "+viewLabel]],{origin:"A1"});
+    ws["!merges"]=[{s:{r:0,c:0},e:{r:0,c:15}},{s:{r:1,c:0},e:{r:1,c:15}}];
+
+    // Row 2: Date
+    const now=new Date();
+    const dateStr=now.toLocaleDateString("pt-PT")+" "+now.toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"});
+    XLSX.utils.sheet_add_aoa(ws,[["Gerado em "+dateStr]],{origin:"A2"});
+
+    // Row 4-5: Stat cards
+    const counts={rascunho:0,em_analise:0,enviado:0,pendente:0,aprovado:0,rejeitado:0};
+    filtered.forEach(p=>counts[p.status]=(counts[p.status]||0)+1);
+    const statLabels=view==="ativos"?["Total","Rascunho","Em Análise","Enviado","Pendente"]:view==="aprovados"?["Aprovados"]:["Rejeitados"];
+    const statVals=view==="ativos"?[filtered.length,counts.rascunho,counts.em_analise,counts.enviado,counts.pendente]:view==="aprovados"?[counts.aprovado]:[counts.rejeitado];
+    XLSX.utils.sheet_add_aoa(ws,[statVals],{origin:"A4"});
+    XLSX.utils.sheet_add_aoa(ws,[statLabels],{origin:"A5"});
+
+    // Row 7: Headers
+    const hdrs=["Empresa","Sugerido por","Projeto/Cliente","Nº Projeto","Pack","Ref. Pack","Produto","Amostras","Qtd","Estado","Fornecedor","Ref. Interna","€/un","Solicitado","Deadline","Dias"];
+    XLSX.utils.sheet_add_aoa(ws,[hdrs],{origin:"A7"});
+
+    // Row 8+: Data
+    const rows=filtered.map(p=>{
+      const sel=p.selectedSupplier>=0?p.suppliers[p.selectedSupplier]:null;
+      const d=daysUntil(p.deadline);
+      return[p.company,p.suggestedBy,p.client,p.nProjeto,p.pack,p.refPack,p.name,p.needsSample===true?"Sim":p.needsSample===false?"Não":"",p.needsSample!==null?p.qty:"",sMap[p.status]?.label||p.status,sel?.name||"",p.refInterna,sel?.price||"",p.created,p.deadline,d!=null?d:""];
+    });
+    XLSX.utils.sheet_add_aoa(ws,rows,{origin:"A8"});
+
+    // Column widths
+    ws["!cols"]=[{wch:16},{wch:16},{wch:22},{wch:16},{wch:22},{wch:14},{wch:30},{wch:10},{wch:6},{wch:14},{wch:18},{wch:14},{wch:9},{wch:12},{wch:12},{wch:8}];
+
+    XLSX.utils.book_append_sheet(wb,ws,"Produtos Sugeridos");
+    XLSX.writeFile(wb,"produtos_sugeridos.xlsx");
+  }
+
+  const update=useCallback(u=>{setProducts(ps=>ps.map(p=>p.id===u.id?u:p));setDetail(prev=>prev?.id===u.id?u:prev)},[]);
+
+  const base=view==="ativos"?products.filter(p=>ACTIVE_KEYS.includes(p.status)):view==="aprovados"?products.filter(p=>p.status==="aprovado"):products.filter(p=>p.status==="rejeitado");
+
+  const filtered=base.filter(p=>{
+    if(search){const q=search.toLowerCase();if(![p.name,p.company,p.client,p.project,p.group,p.type,p.nProjeto,p.refInterna,p.pack,p.refPack].some(f=>(f||"").toLowerCase().includes(q)))return false}
+    if(grpF&&p.group!==grpF)return false;if(stF&&p.status!==stF)return false;return true;
+  }).sort((a,b)=>{
+    if(sort.key==="daysLeft"){const da=daysUntil(a.deadline)??999,db=daysUntil(b.deadline)??999;return sort.dir==="asc"?da-db:db-da}
+    if(sort.key==="price"){const pa=a.selectedSupplier>=0?a.suppliers[a.selectedSupplier]?.price||0:0;const pb=b.selectedSupplier>=0?b.suppliers[b.selectedSupplier]?.price||0:0;return sort.dir==="asc"?pa-pb:pb-pa}
+    let va=a[sort.key]??"",vb=b[sort.key]??"";if(typeof va==="number")return sort.dir==="asc"?va-vb:vb-va;
+    return sort.dir==="asc"?String(va).localeCompare(String(vb)):String(vb).localeCompare(String(va));
+  });
+
+  const ds=key=>setSort(s=>({key,dir:s.key===key&&s.dir==="asc"?"desc":"asc"}));
+
+  const stats=[
+    {l:"Total",v:products.length,c:"var(--brand)",f:"total"},
+    {l:"Rascunho",v:products.filter(p=>p.status==="rascunho").length,c:"#78909c",f:"rascunho"},
+    {l:"Em Análise",v:products.filter(p=>p.status==="em_analise").length,c:"var(--brand)",f:"em_analise"},
+    {l:"Enviado",v:products.filter(p=>p.status==="enviado").length,c:"var(--purple)",f:"enviado"},
+    {l:"Pendente",v:products.filter(p=>p.status==="pendente").length,c:"var(--orange)",f:"pendente"},
+    {l:"Aprovados",v:products.filter(p=>p.status==="aprovado").length,c:"var(--green)",f:"aprovado"},
+    {l:"Rejeitados",v:products.filter(p=>p.status==="rejeitado").length,c:"var(--red)",f:"rejeitado"},
+  ];
+
+  const handleCardClick=(f)=>{
+    if(f==="total"){setView("ativos");setStF("")}
+    else if(f==="aprovado"){setView("aprovados");setStF("")}
+    else if(f==="rejeitado"){setView("rejeitados");setStF("")}
+    else{setView("ativos");setStF(stF===f?"":f)}
+  };
+
+  function THS({l,f,center,right,w}){return <th onClick={()=>ds(f)} style={{padding:"8px 6px",background:"var(--brand)",color:"#fff",fontSize:8.5,fontWeight:700,textTransform:"uppercase",letterSpacing:.5,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap",textAlign:center?"center":right?"right":"left",width:w}}>{l}<span style={{opacity:sort.key===f?1:.2,fontSize:7,marginLeft:2}}>{sort.key===f&&sort.dir==="asc"?"▲":"▼"}</span></th>}
+  function TD({children,center,right}){return <td style={{padding:"7px 6px",textAlign:center?"center":right?"right":"left",verticalAlign:"middle"}}>{children}</td>}
+
+  return <div style={{minHeight:"100vh",background:"var(--bg)"}}>
+    <header style={{background:"var(--brand)",padding:"0 24px",height:48,display:"flex",alignItems:"center"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1.5" fill="#fff"/><rect x="9" y="1" width="6" height="6" rx="1.5" fill="#fff" opacity=".5"/><rect x="1" y="9" width="6" height="6" rx="1.5" fill="#fff" opacity=".5"/><rect x="9" y="9" width="6" height="6" rx="1.5" fill="#fff" opacity=".3"/></svg>
+        <span style={{color:"#fff",fontSize:15,fontWeight:700}}>Produtos Sugeridos</span>
+      </div>
+    </header>
+
+    {/* Cards — always visible, all 6 */}
+    <div style={{display:"flex",gap:8,padding:"10px 24px 6px"}}>{stats.map((s,i)=>{
+      const isActive=(s.f==="total"&&view==="ativos"&&stF==="")||(s.f==="aprovado"&&view==="aprovados")||(s.f==="rejeitado"&&view==="rejeitados")||(ACTIVE_KEYS.includes(s.f)&&view==="ativos"&&stF===s.f);
+      return <button key={i} onClick={()=>handleCardClick(s.f)} className={"card-stat"+(isActive?" active":"")} style={{borderColor:isActive?s.c:"var(--border)"}}><div style={{fontSize:22,fontWeight:800,color:s.c,lineHeight:1}}>{s.v}</div><div style={{fontSize:10,color:"var(--sub)",fontWeight:600,marginTop:2}}>{s.l}</div></button>
+    })}</div>
+
+    {/* Filters row with view selector */}
+    <div style={{padding:"4px 24px 6px",display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+      <div style={{position:"relative",flex:"1 1 200px",maxWidth:280}}>
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)"}}><circle cx="6.5" cy="6.5" r="5" stroke="#999" strokeWidth="1.5"/><path d="M10.5 10.5L14 14" stroke="#999" strokeWidth="1.5" strokeLinecap="round"/></svg>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Procurar..." className="inp" style={{paddingLeft:28,height:32,fontSize:11}}/>
+      </div>
+      <select value={grpF} onChange={e=>setGrpF(e.target.value)} className="inp" style={{width:"auto",height:32,cursor:"pointer",fontSize:11,padding:"3px 8px"}}><option value="">Todos Grupos</option>{GROUPS.map(f=><option key={f}>{f}</option>)}</select>
+      {view==="ativos"&&<select value={stF} onChange={e=>setStF(e.target.value)} className="inp" style={{width:"auto",height:32,cursor:"pointer",fontSize:11,padding:"3px 8px"}}><option value="">Todos Estados</option>{STATUSES.filter(s=>ACTIVE_KEYS.includes(s.key)).map(s=><option key={s.key} value={s.key}>{s.label}</option>)}</select>}
+      {/* View selector inline + Export */}
+      <div style={{display:"flex",gap:6,alignItems:"center",marginLeft:"auto"}}>
+        <div style={{display:"flex",gap:2,background:"#e2e5ea",borderRadius:7,padding:2}}>
+          {[["ativos","Ativos"],["aprovados","Aprovados"],["rejeitados","Rejeitados"]].map(([k,l])=><button key={k} onClick={()=>{setView(k);setStF("")}} style={{padding:"4px 12px",borderRadius:5,border:"none",cursor:"pointer",fontSize:10,fontWeight:700,background:view===k?"#fff":"transparent",color:view===k?"var(--brand)":"var(--sub)",boxShadow:view===k?"0 1px 3px #0001":"none"}}>{l} ({k==="ativos"?products.filter(p=>ACTIVE_KEYS.includes(p.status)).length:k==="aprovados"?products.filter(p=>p.status==="aprovado").length:products.filter(p=>p.status==="rejeitado").length})</button>)}
+        </div>
+        <button onClick={exportExcel} style={{background:"var(--brand)",border:"none",borderRadius:6,padding:"5px 12px",color:"#fff",fontSize:10,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Excel
+        </button>
+      </div>
+      <span style={{fontSize:10,color:"var(--sub)"}}>{filtered.length} resultados</span>
+    </div>
+
+    <div style={{padding:"4px 24px 24px"}}><div style={{background:"var(--card)",borderRadius:"var(--r)",overflow:"hidden",border:"1.5px solid var(--border)"}}><div style={{overflowX:"auto"}}><table style={{minWidth:1560}}>
+      <thead><tr>
+        <THS l="Empresa" f="company" w="85px"/>
+        <THS l="Sugerido por" f="suggestedBy" w="100px"/>
+        <THS l="Projeto / Cliente" f="project"/>
+        <THS l="Nº Projeto" f="nProjeto" w="100px"/>
+        <THS l="Pack" f="pack"/>
+        <THS l="Ref. Pack" f="refPack" w="90px"/>
+        <THS l="Produto" f="name"/>
+        <THS l="Grupo" f="group"/>
+        <THS l="Tipo" f="type"/>
+        <THS l="Amostras" f="needsSample" center w="58px"/>
+        <THS l="Qtd" f="qty" center w="36px"/>
+        <THS l="Estado" f="status"/>
+        <THS l="Fornecedor" f="supplier"/>
+        <THS l="Ref. Interna" f="refInterna" w="90px"/>
+        <THS l="€/un" f="price" right w="50px"/>
+        <THS l="Solicitado" f="created" center w="72px"/>
+        <THS l="Deadline" f="deadline" center w="72px"/>
+        <THS l="Dias" f="daysLeft" center w="36px"/>
+      </tr></thead>
+      <tbody>{filtered.map((p,i)=>{
+        const days=daysUntil(p.deadline);const selSup=p.selectedSupplier>=0?p.suppliers[p.selectedSupplier]:null;
+        return <tr key={p.id} onClick={()=>setDetail(p)} style={{cursor:"pointer",background:i%2?"#fafbfc":"#fff",borderBottom:"1px solid #f2f3f5"}}>
+          <TD><span style={{fontSize:10,fontWeight:600,color:"#555"}}>{p.company}</span></TD>
+          <TD><span style={{fontSize:10,fontWeight:500,color:"var(--sub)"}}>{p.suggestedBy}</span></TD>
+          <TD><div style={{fontSize:10,fontWeight:600}}>{p.project}</div><div style={{fontSize:9,color:"var(--sub)"}}>{p.client}</div></TD>
+          <TD><span style={{fontSize:10,fontFamily:"monospace",color:"var(--brand)",fontWeight:600}}>{p.nProjeto}</span></TD>
+          <TD><span style={{fontSize:10,fontWeight:600}}>{p.pack}</span></TD>
+          <TD>{p.refPack?<span style={{fontSize:9.5,fontFamily:"monospace",color:"var(--purple)",fontWeight:600}}>{p.refPack}</span>:<span style={{color:"#d0d0d0",fontSize:10}}>—</span>}</TD>
+          <TD><div style={{display:"flex",alignItems:"center",gap:4}}><span style={{fontSize:11,fontWeight:600}}>{p.name}</span>{isUrgent(p)&&<span style={{fontSize:7,background:"var(--red)",color:"#fff",padding:"1px 5px",borderRadius:3,fontWeight:800,letterSpacing:.3}}>URGENTE</span>}</div></TD>
+          <TD><span style={{fontSize:10}}>{p.group}</span></TD>
+          <TD><span style={{fontSize:10,color:"var(--brand)",fontWeight:600}}>{p.type}</span></TD>
+          <TD center><span style={{fontSize:10,fontWeight:600,color:p.needsSample===true?"var(--orange)":p.needsSample===false?"var(--green)":"#d0d0d0"}}>{p.needsSample===true?"Sim":p.needsSample===false?"Não":"—"}</span></TD>
+          <TD center>{p.needsSample!==null?<span style={{fontSize:11,fontWeight:700}}>{p.qty}</span>:<span style={{color:"#d0d0d0",fontSize:10}}>—</span>}</TD>
+          <TD><Badge status={p.status}/></TD>
+          <TD>{selSup?<span style={{fontSize:10,fontWeight:600}}>{selSup.name}</span>:<span style={{fontSize:9,color:p.suppliers.length?"var(--orange)":"#d0d0d0"}}>{p.suppliers.length?p.suppliers.length+" opções":"—"}</span>}</TD>
+          <TD>{p.refInterna?<span style={{fontSize:9.5,fontFamily:"monospace",color:"var(--brand)",fontWeight:700}}>{p.refInterna}</span>:<span style={{color:"#d0d0d0",fontSize:10}}>—</span>}</TD>
+          <TD right>{selSup?.price?<span style={{fontSize:11,fontWeight:700,color:"var(--green)"}}>€{Number(selSup.price).toFixed(2)}</span>:<span style={{color:"#d0d0d0",fontSize:10}}>—</span>}</TD>
+          <TD center><span style={{fontSize:9.5,color:"var(--sub)"}}>{p.created}</span></TD>
+          <TD center><span style={{fontSize:9.5,fontWeight:600,color:dayColor(days)}}>{p.deadline}</span></TD>
+          <TD center><span style={{fontSize:11,fontWeight:800,color:dayColor(days)}}>{days!=null?days:""}</span></TD>
+        </tr>
+      })}</tbody>
+    </table></div>
+    {filtered.length===0&&<div style={{padding:40,textAlign:"center",color:"var(--sub)"}}><div style={{fontSize:28,opacity:.3}}>∅</div><div style={{fontSize:12,fontWeight:600,marginTop:4}}>Sem resultados</div></div>}
+    </div></div>
+    {detail&&<DetailPanel product={detail} onClose={()=>setDetail(null)} onUpdate={update}/>}
+  </div>
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+</script>
+</body>
+</html>
