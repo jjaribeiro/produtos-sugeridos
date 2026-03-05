@@ -41,6 +41,7 @@ const {useState,useEffect,useCallback}=React;
 
 const STATUSES=[
   {key:"rascunho",label:"Rascunho",color:"#78909c",bg:"#eceff1"},
+  {key:"todo",label:"To Do",color:"#0097a7",bg:"#e0f7fa"},
   {key:"em_analise",label:"Em Análise",color:"var(--brand)",bg:"#e3f2fd"},
   {key:"enviado",label:"Enviado",color:"var(--purple)",bg:"#ede7f6"},
   {key:"pendente",label:"Pendente",color:"var(--orange)",bg:"#fff3e0"},
@@ -48,57 +49,92 @@ const STATUSES=[
   {key:"rejeitado",label:"Rejeitado",color:"var(--red)",bg:"#ffebee"},
 ];
 const sMap=Object.fromEntries(STATUSES.map(s=>[s.key,s]));
-const ACTIVE_KEYS=["rascunho","em_analise","enviado","pendente"];
+const ACTIVE_KEYS=["rascunho","todo","em_analise","enviado","pendente"];
 const GROUPS=["Taças","Campos Cirúrgicos","Campos Especialidade","Seringas","Batas","Coberturas","Agulhas","Luvas","Compressas","Adesivos","Acessórios"];
 
-const mk=(id,nm,co,grp,typ,by,cr,dl,st,ns,qty,sups,sel,prj,cl,pk,rpk,np,ref,desc,photos,notes)=>({id,name:nm,company:co,group:grp,type:typ,suggestedBy:by,created:cr,deadline:dl,status:st,needsSample:ns,qty,suppliers:sups||[],selectedSupplier:sel??-1,project:prj,client:cl,pack:pk,refPack:rpk||"",nProjeto:np,refInterna:ref||"",description:desc||"",photos:photos||[],notes:notes||""});
+const mk=(id,nm,co,grp,typ,by,cr,dl,st,ns,qty,sups,sel,prj,cl,pk,rpk,np,ref,desc,photos,notes,pType,ps)=>({id,name:nm,company:co,group:grp,type:typ,suggestedBy:by,created:cr,deadline:dl,status:st,needsSample:ns,qty,suppliers:sups||[],selectedSupplier:sel??-1,project:prj,client:cl,pack:pk,refPack:rpk||"",nProjeto:np,refInterna:ref||"",description:desc||"",photos:photos||[],notes:notes||"",productType:pType||"",psDoc:ps||null,designNotes:"",procNotes:""});
 function isUrgent(p){const d=daysUntil(p.deadline);return d!==null&&d<=7}
+
+// Catálogo de referências internas Oasipor
+const CATALOGO=[
+  {ref:"CP-ANC-001",name:"Âncora de fixação descartável",group:"Acessórios"},
+  {ref:"CP-AGF-001",name:"Agulha punção femoral 18G",group:"Agulhas"},
+  {ref:"CP-AGF-002",name:"Agulha punção femoral 21G",group:"Agulhas"},
+  {ref:"CP-AGS-001",name:"Agulha Spinal 25G 90mm",group:"Agulhas"},
+  {ref:"CP-AGS-002",name:"Agulha Spinal 22G 120mm",group:"Agulhas"},
+  {ref:"CP-CMP-001",name:"Compressas gaze 10x10 4 camadas",group:"Compressas"},
+  {ref:"CP-CMP-002",name:"Compressas TNT 7.5x7.5",group:"Compressas"},
+  {ref:"CP-SER-001",name:"Seringa 2P 10ml Luer Slip",group:"Seringas"},
+  {ref:"CP-SER-002",name:"Seringa 3P 20ml Luer Lock",group:"Seringas"},
+  {ref:"CP-SER-003",name:"Seringa 2P 5ml Luer Slip",group:"Seringas"},
+  {ref:"CP-SHC-001",name:"Cobre-sapatos anti-derrapante",group:"Acessórios"},
+  {ref:"CP-TAB-001",name:"Toalha absorvente mãos estéril",group:"Acessórios"},
+  {ref:"CP-TCR-001",name:"Taça redonda 60ml graduada",group:"Taças"},
+  {ref:"CP-TCR-002",name:"Taça redonda 120ml graduada",group:"Taças"},
+  {ref:"CP-TFG-001",name:"Taça fio-guia 3000ml",group:"Taças"},
+  {ref:"CP-TFG-002",name:"Taça fio-guia 1500ml",group:"Taças"},
+  {ref:"CP-TCT-001",name:"Taça contraste 250ml",group:"Taças"},
+  {ref:"CP-CMY-001",name:"Cobertura mesa mayo impermeável",group:"Coberturas"},
+  {ref:"CP-TBA-001",name:"Tubo aspiração 3m universal",group:"Acessórios"},
+  {ref:"MW-CAS-001",name:"Campo adesivado simples 75x90",group:"Campos Cirúrgicos"},
+  {ref:"MW-CAS-002",name:"Campo adesivado simples 90x120",group:"Campos Cirúrgicos"},
+  {ref:"MW-CAR-001",name:"Campo adesivado reforçado 100x150",group:"Campos Cirúrgicos"},
+  {ref:"MW-CFO-001",name:"Campo fenestrado oftalmologia",group:"Campos Especialidade"},
+  {ref:"MW-CFU-001",name:"Campo fenestrado urologia",group:"Campos Especialidade"},
+  {ref:"MW-CFN-001",name:"Campo fenestrado neurocirurgia",group:"Campos Especialidade"},
+  {ref:"MW-BAT-001",name:"Bata reforçada Spunlace L",group:"Batas"},
+  {ref:"MW-BAT-002",name:"Bata reforçada Spunlace XL",group:"Batas"},
+  {ref:"MW-BAT-003",name:"Bata standard SMS M",group:"Batas"},
+  {ref:"MW-DRP-001",name:"Drape cirúrgico universal 200x300",group:"Coberturas"},
+  {ref:"MW-DRP-002",name:"Drape cirúrgico split 240x300",group:"Coberturas"},
+];
 
 const INIT=[
   mk(1,"Thread Cutting Knife","Oasipor","Acessórios","Descartável","Joao Ribeiro","26/02/2026","","rascunho",null,1,[],-1,"Packs ULS Coimbra","ULS Coimbra","Pack Angiografia","PK-ANG-0041","PRJ-2026-00487","","Faca descartável para corte de fio cirúrgico",["https://placehold.co/200x150/e3f2fd/1565c0?text=Thread+Knife"],""),
   mk(15,"Seringa 3P 20ml","Oasipor","Seringas","3 Peças","Joao Ribeiro","26/02/2026","","rascunho",null,2,[],-1,"Packs ULS Coimbra","ULS Coimbra","Pack Angiografia","PK-ANG-0041","PRJ-2026-00487","","Seringa luer lock 3 peças 20ml",[],""),
   mk(16,"Taça Contraste 250ml","Oasipor","Taças","Contraste","Joao Ribeiro","26/02/2026","","rascunho",null,1,[],-1,"Packs ULS Coimbra","ULS Coimbra","Pack Angiografia","PK-ANG-0041","PRJ-2026-00487","","Taça graduada 250ml para contraste",[],""),
-  mk(2,"Taça Fio-Guia 3000ml","Oasipor","Taças","Fio-Guia","Alexandra Vidal","26/02/2026","10/03/2026","em_analise",true,1,[
-    {name:"MedDevice GmbH",ref:"MD-TFG-3000",price:4.20,lead:"30d",moq:100,notes:"Cotação 26/02"},
-    {name:"B. Braun",ref:"BB-4401",price:3.85,lead:"21d",moq:200,notes:"Melhor preço"},
-    {name:"SinoMed",ref:"SM-TFG-30",price:2.90,lead:"45d",moq:500,notes:"MOQ elevado"},
-  ],-1,"Packs ULS Coimbra","ULS Coimbra","Pack Neuroradiologia","PK-NRD-0012","PRJ-2026-00487","","Taça com guia para fio 3000ml, transparente",["https://placehold.co/200x150/fff3e0/e65100?text=Taça+3000ml","https://placehold.co/200x150/fce4ec/c62828?text=Detalhe"],"3 cotações pedidas"),
-  mk(3,"Agulha punção femoral 18G","Oasipor","Agulhas","Punção","Joana Romão","26/02/2026","20/03/2026","enviado",true,2,[
+  mk(2,"Taça Fio-Guia 3000ml","Oasipor","Taças","Fio-Guia","Alexandra Vidal","26/02/2026","10/03/2026","todo",true,1,[],-1,"Packs ULS Coimbra","ULS Coimbra","Pack Neuroradiologia","PK-NRD-0012","PRJ-2026-00487","","Taça com guia para fio 3000ml, transparente",["https://placehold.co/200x150/fff3e0/e65100?text=Taça+3000ml"],"3 cotações pedidas","procurement"),
+  mk(3,"Agulha punção femoral 18G","Oasipor","Agulhas","Punção","Joana Romão","26/02/2026","20/03/2026","em_analise",true,2,[
     {name:"B. Braun",ref:"REF-4502187",price:2.45,lead:"21d",moq:100,notes:"Habitual"},
     {name:"Teleflex",ref:"TF-18G70",price:2.80,lead:"28d",moq:50,notes:""},
-  ],0,"Packs CUF Descobertas","CUF Descobertas","Pack Angiografia","PK-ANG-0058","PRJ-2026-00512","OAS-AGF-001","Agulha de punção femoral 1.3x70mm 18G com ponta biselada",["https://placehold.co/200x150/e8f5e9/2e7d32?text=Agulha+18G"],""),
+  ],0,"Packs CUF Descobertas","CUF Descobertas","Pack Angiografia","PK-ANG-0058","PRJ-2026-00512","CP-AGF-001","Agulha de punção femoral 18G",["https://placehold.co/200x150/e8f5e9/2e7d32?text=Agulha+18G"],"","procurement"),
   mk(4,"Shoe Covers","Farkon Ltd","Acessórios","Proteção","Mira","26/02/2026","25/03/2026","em_analise",true,50,[
     {name:"Farkon Ltd",ref:"FK-SC-100",price:0.35,lead:"14d",moq:1000,notes:""},
-  ],0,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Cirurgia Geral","PK-CIR-0103","PRJ-2026-00498","OAS-SHC-001","Cobre-sapatos descartável não tecido, anti-derrapante",[],"Amostra enviada"),
-  mk(17,"Toalha Absorvente Mãos","Oasipor","Acessórios","Absorvente","Alexandra Vidal","26/02/2026","25/03/2026","em_analise",true,4,[],-1,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Cirurgia Geral","PK-CIR-0103","PRJ-2026-00498","","Toalha absorvente estéril para secagem de mãos",[],""),
+  ],0,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Cirurgia Geral","PK-CIR-0103","PRJ-2026-00498","CP-SHC-001","Cobre-sapatos descartável",[],"Amostra enviada","procurement"),
+  mk(17,"Toalha Absorvente Mãos","Oasipor","Acessórios","Absorvente","Alexandra Vidal","26/02/2026","25/03/2026","todo",true,4,[],-1,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Cirurgia Geral","PK-CIR-0103","PRJ-2026-00498","","Toalha absorvente estéril",[],"","procurement"),
+  mk(12,"Compressas Gaze 10x10","Oasipor","Compressas","Não Tecida","Alexandra Vidal","22/02/2026","","rascunho",null,10,[],-1,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Cirurgia Geral","PK-CIR-0103","PRJ-2026-00498","","Compressas gaze não tecida 10x10cm",[],""),
   mk(5,"Taça Redonda 60ml Lidocaine","Oasipor","Taças","Redonda","Joao Ribeiro","25/02/2026","20/03/2026","enviado",true,5,[
     {name:"SinoMed",ref:"SM-MC60-LID",price:0.18,lead:"45d",moq:5000,notes:"Aprovada"},
-    {name:"MedLine",ref:"ML-CUP60G",price:0.24,lead:"30d",moq:1000,notes:""},
-  ],0,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Angiografia","PK-ANG-0071","PRJ-2026-00498","OAS-CUP-001","Taça redonda 60ml com marcação Lidocaine, graduada",["https://placehold.co/200x150/e3f2fd/1565c0?text=Taça+60ml"],""),
+  ],0,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Angiografia","PK-ANG-0071","PRJ-2026-00498","CP-TCR-001","Taça redonda 60ml Lidocaine",[],"","procurement"),
   mk(6,"Taça Redonda 60ml Nitroglycerine","Oasipor","Taças","Redonda","Joao Ribeiro","25/02/2026","20/03/2026","em_analise",true,5,[
     {name:"SinoMed",ref:"SM-MC60-NIT",price:0.18,lead:"45d",moq:5000,notes:""},
-  ],0,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Angiografia","PK-ANG-0071","PRJ-2026-00498","OAS-CUP-002","Taça redonda 60ml com marcação Nitroglycerine",[],""),
+  ],0,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Angiografia","PK-ANG-0071","PRJ-2026-00498","CP-TCR-001","Taça redonda 60ml Nitroglycerine",[],"","procurement"),
   mk(7,"Campo Adesivado 75x90","Oasipor","Campos Cirúrgicos","Adesivado Simples","Alexandra Vidal","25/02/2026","15/03/2026","aprovado",false,5,[
     {name:"Oasipor",ref:"MW-CA-7590",price:0.85,lead:"7d",moq:100,notes:"Produção interna"},
-  ],0,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Cardiologia","PK-CAR-0029","PRJ-2026-00498","OAS-CAS-001","Campo cirúrgico adesivado simples 75x90cm",[],""),
+  ],0,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Cardiologia","PK-CAR-0029","PRJ-2026-00498","MW-CAS-001","Campo adesivado 75x90cm",[],"","procurement"),
+  mk(18,"Campo Fenestrado Custom","Oasipor","Campos Especialidade","Fenestrado","Joana Romão","24/02/2026","30/03/2026","todo",true,1,[],-1,"Packs Hospital Braga","Hospital de Braga","Pack Oftalmologia","PK-OFT-0003","PRJ-2026-00531","","Campo fenestrado personalizado oftalmologia",["https://placehold.co/200x150/ede7f6/6a1b9a?text=Campo+Custom"],"Necessita PS do design","interno"),
+  mk(9,"Bata Reforçada Spunlace L","Oasipor","Batas","Reforçada","Joana Romão","24/02/2026","30/03/2026","em_analise",false,2,[
+    {name:"Fábrica PT",ref:"FPT-BRL-01",price:3.80,lead:"14d",moq:50,notes:"Produção nacional"},
+  ],0,"Packs Hospital Braga","Hospital de Braga","Pack Cirurgia Geral","PK-CIR-0088","PRJ-2026-00531","MW-BAT-001","Bata reforçada spunlace L",["https://placehold.co/200x150/ede7f6/6a1b9a?text=Bata+L"],"PS anexada","interno",{name:"PS-BAT-001-v2.pdf",date:"28/02/2026",size:245000}),
   mk(8,"Seringa 2P 10ml Lidocaine","Oasipor","Seringas","2 Peças","Alexandra Vidal","25/02/2026","18/03/2026","pendente",false,3,[
     {name:"MedLine",ref:"ML-SYR-2P10",price:0.42,lead:"21d",moq:500,notes:"Rejeitado — specs"},
-  ],0,"Packs CUF Descobertas","CUF Descobertas","Pack Ortopedia","PK-ORT-0017","PRJ-2026-00512","OAS-SER-001","Seringa 2 peças luer slip 10ml com marcação Lidocaine",[],"Precisa nova sugestão"),
-  mk(9,"Bata Reforçada Spunlace L","Oasipor","Batas","Reforçada","Joana Romão","24/02/2026","30/03/2026","aprovado",false,2,[
-    {name:"Oasipor",ref:"MW-SG-RL",price:3.80,lead:"7d",moq:50,notes:""},
-  ],0,"Packs Hospital Braga","Hospital de Braga","Pack Cirurgia Geral","PK-CIR-0088","PRJ-2026-00531","OAS-BAT-001","Bata cirúrgica reforçada spunlace tamanho L, estéril",["https://placehold.co/200x150/ede7f6/6a1b9a?text=Bata+L"],""),
-  mk(10,"Agulha Spinal 25G 90mm","Oasipor","Agulhas","Spinal","Joana Romão","24/02/2026","","rascunho",null,1,[],-1,"Packs Hospital Braga","Hospital de Braga","Pack Anestesia","PK-ANE-0005","PRJ-2026-00531","","Agulha spinal ponta pencil-point 25G 90mm",[],"Urgente"),
-  mk(11,"Campo Fenestrado Oftalmo","Oasipor","Campos Especialidade","Fenestrado","Alexandra Vidal","23/02/2026","30/03/2026","aprovado",false,1,[
-    {name:"Oasipor",ref:"MW-CFO-01",price:1.90,lead:"7d",moq:100,notes:""},
-  ],0,"Packs ULS Coimbra","ULS Coimbra","Pack Oftalmologia","PK-OFT-0003","PRJ-2026-00487","OAS-CEF-001","Campo fenestrado oftalmologia com bolsa recolha fluidos",[],""),
-  mk(12,"Compressas Gaze 10x10","Oasipor","Compressas","Não Tecida","Alexandra Vidal","22/02/2026","","rascunho",null,10,[],-1,"Packs Hospital da Luz","Hospital da Luz Lisboa","Pack Cirurgia Geral","PK-CIR-0103","PRJ-2026-00498","","Compressas gaze não tecida 10x10cm, 4 camadas",[],""),
+  ],0,"Packs CUF Descobertas","CUF Descobertas","Pack Ortopedia","PK-ORT-0017","PRJ-2026-00512","CP-SER-001","Seringa 2P 10ml Lidocaine",[],"Precisa nova sugestão","procurement"),
+  mk(10,"Agulha Spinal 25G 90mm","Oasipor","Agulhas","Spinal","Joana Romão","24/02/2026","","rascunho",null,1,[],-1,"Packs Hospital Braga","Hospital de Braga","Pack Anestesia","PK-ANE-0005","PRJ-2026-00531","","Agulha spinal 25G 90mm",[],"Urgente"),
   mk(13,"Cobertura Mesa Mayo","Oasipor","Coberturas","Mayo","Joao Ribeiro","22/02/2026","20/03/2026","pendente",false,2,[
     {name:"SinoMed",ref:"SM-CMY-01",price:0.55,lead:"45d",moq:2000,notes:"Qualidade insuficiente"},
-  ],0,"Packs Hospital Braga","Hospital de Braga","Pack Cirurgia Geral","PK-CIR-0088","PRJ-2026-00531","","Cobertura absorvente para mesa mayo, impermeável",[],"Nova sugestão necessária"),
+  ],0,"Packs Hospital Braga","Hospital de Braga","Pack Cirurgia Geral","PK-CIR-0088","PRJ-2026-00531","","Cobertura mesa mayo",[],"Nova sugestão necessária","procurement"),
   mk(14,"Tubo Aspiração 3m","Oasipor","Acessórios","Aspiração","Joao Ribeiro","20/02/2026","10/03/2026","rejeitado",false,1,[
     {name:"SinoMed",ref:"SM-TA-3M",price:1.10,lead:"45d",moq:500,notes:"Sem alternativa viável"},
-  ],0,"Packs Hospital Braga","Hospital de Braga","Pack Cirurgia Geral","PK-CIR-0088","PRJ-2026-00531","","Tubo de aspiração flexível 3 metros com conector universal",[],"Sem fornecedor alternativo — rejeitado"),
+  ],0,"Packs Hospital Braga","Hospital de Braga","Pack Cirurgia Geral","PK-CIR-0088","PRJ-2026-00531","","Tubo aspiração 3m",[],"Sem fornecedor alternativo","procurement"),
 ];
+
+// Set some mock notes
+INIT.find(p=>p.id===3).procNotes="Amostra pedida a B. Braun 27/02. Aguarda entrega.";
+INIT.find(p=>p.id===4).procNotes="Preço confirmado. Amostra aprovada.";
+INIT.find(p=>p.id===5).procNotes="Enviado ao projeto 01/03. Aguarda aprovação.";
+INIT.find(p=>p.id===8).procNotes="Specs rejeitadas pelo projeto. A contactar Teleflex como alternativa.";
+INIT.find(p=>p.id===9).designNotes="PS v2 finalizada. Produção na fábrica PT confirmada.";
+INIT.find(p=>p.id===18).designNotes="PS em desenvolvimento. Reunião com design 05/03.";
 
 function daysUntil(dd){if(!dd)return null;const p=dd.split("/");const d=new Date(+p[2],+p[1]-1,+p[0]);const n=new Date();n.setHours(0,0,0,0);return Math.ceil((d-n)/864e5)}
 function dayColor(d){if(d==null)return"var(--sub)";if(d<=3)return"var(--red)";if(d<=7)return"var(--orange)";if(d<=14)return"#c49000";return"var(--green)"}
@@ -110,6 +146,7 @@ function DetailPanel({product:init,onClose,onUpdate}){
   const[p,setP]=useState({...init});
   const[addMode,setAddMode]=useState(false);
   const[nS,setNS]=useState({name:"",ref:"",price:"",lead:"",moq:"",notes:""});
+  const[refSearch,setRefSearch]=useState("");
   useEffect(()=>{setP({...init});setAddMode(false)},[init]);
   const set=(k,v)=>{const u={...p,[k]:v};setP(u);onUpdate(u)};
   const s=sMap[p.status];const days=daysUntil(p.deadline);
@@ -126,11 +163,13 @@ function DetailPanel({product:init,onClose,onUpdate}){
         <div style={{padding:"14px 18px 12px",display:"flex",gap:10}}>
           <div style={{flex:1}}>
             <div style={{fontSize:10,color:"var(--sub)",fontWeight:500,marginBottom:2}}>{p.company} · <span style={{color:"var(--brand)",fontWeight:700}}>{p.nProjeto}</span></div>
-            <h2 style={{fontSize:16,fontWeight:800,lineHeight:1.2}}>{p.name}</h2>
+            <h2 style={{fontSize:20,fontWeight:800,lineHeight:1.2}}>{p.name}</h2>
             <div style={{display:"flex",gap:5,marginTop:5,flexWrap:"wrap",alignItems:"center"}}>
               <Badge status={p.status}/>
               <span style={{fontSize:9,background:"#f3f4f6",padding:"2px 7px",borderRadius:20,color:"var(--sub)",fontWeight:600}}>{p.group} · {p.type}</span>
               {isUrgent(p)&&<span style={{fontSize:9,background:"#fff3e0",color:"var(--orange)",padding:"2px 7px",borderRadius:20,fontWeight:700}}>⚡ Urgente</span>}
+              {p.productType==="procurement"&&<span style={{fontSize:9,background:"#e3f2fd",color:"var(--brand)",padding:"2px 7px",borderRadius:20,fontWeight:700}}>📦 Procurement</span>}
+              {p.productType==="interno"&&<span style={{fontSize:9,background:"#f3e5f5",color:"var(--purple)",padding:"2px 7px",borderRadius:20,fontWeight:700}}>⚙ Produto Interno</span>}
               {p.status==="enviado"&&<span style={{fontSize:9,background:"#ede7f6",color:"var(--purple)",padding:"2px 7px",borderRadius:20,fontWeight:700}}>⏳ Aguarda feedback</span>}
             </div>
           </div>
@@ -159,19 +198,54 @@ function DetailPanel({product:init,onClose,onUpdate}){
             </div>
             <div style={{borderTop:"1px solid var(--border)",paddingTop:10,marginBottom:10}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}><span style={{fontSize:9,fontWeight:700,color:"var(--brand)",letterSpacing:.5,textTransform:"uppercase"}}>A confirmar pelo comercial</span></div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+              <div style={{marginBottom:10}}><div className="lbl">Tipo de Produto</div>
+                <div style={{display:"flex",gap:4,marginTop:3}}>{[["procurement","Procurement"],["interno","Produto Interno"]].map(([k,l])=><button key={k} onClick={()=>set("productType",k)} className="btn" style={{flex:1,fontSize:11,padding:"6px 10px",background:p.productType===k?(k==="procurement"?"var(--brand)":"var(--purple)"):"#f3f4f6",color:p.productType===k?"#fff":"var(--sub)",border:"1.5px solid "+(p.productType===k?"transparent":"var(--border)"),borderRadius:6}}>{l}</button>)}</div>
+              </div>
+              {p.productType&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
                 <div><div className="lbl">Deadline</div><input value={p.deadline||""} onChange={e=>set("deadline",e.target.value)} placeholder="dd/mm/aaaa" className="inp" style={{marginTop:3,fontSize:12,fontWeight:700,color:dayColor(days)}}/></div>
                 <div><div className="lbl">Amostras</div><div style={{display:"flex",gap:3,marginTop:3,height:32}}>{[true,false].map(v=><button key={v+""} onClick={()=>set("needsSample",v)} className="btn" style={{flex:1,fontSize:11,padding:"5px 10px",background:p.needsSample===v?(v?"var(--orange)":"var(--green)"):"#f3f4f6",color:p.needsSample===v?"#fff":"var(--sub)",border:"1.5px solid "+(p.needsSample===v?"transparent":"var(--border)")}}>{v?"Sim":"Não"}</button>)}</div></div>
                 <div><div className="lbl">Quantidade</div>{p.needsSample!==null?<input type="number" min="0" value={p.qty} onChange={e=>set("qty",+e.target.value||0)} className="inp" style={{marginTop:3,fontSize:14,fontWeight:700,textAlign:"center"}}/>:<div style={{marginTop:3,padding:"7px 10px",height:32,display:"flex",alignItems:"center",justifyContent:"center",background:"#fafafa",borderRadius:7,border:"1.5px dashed var(--border)",fontSize:10,color:"var(--sub)"}}>Definir amostras</div>}</div>
-              </div>
+              </div>}
+              {p.productType==="interno"&&<div style={{marginTop:8,padding:"6px 10px",background:"#f3e5f5",borderRadius:6,fontSize:10,color:"var(--purple)",fontWeight:600}}>⚙ Produto interno — após confirmar, será enviado alerta para Design e Compras</div>}
+              {p.productType==="procurement"&&<div style={{marginTop:8,padding:"6px 10px",background:"#e3f2fd",borderRadius:6,fontSize:10,color:"var(--brand)",fontWeight:600}}>📦 Procurement — após confirmar, será enviado alerta para Compras</div>}
             </div>
             <div><div className="lbl">Notas</div><textarea value={p.notes} onChange={e=>set("notes",e.target.value)} placeholder="Notas, observações..." rows={2} className="inp" style={{marginTop:3,resize:"vertical",lineHeight:1.4}}/></div>
           </div>
         </div>
+        {/* Design section for interno products */}
+        {p.productType==="interno"&&<div className="sec">
+          <div className="sec-head" style={{background:"#fce4ec"}}><span style={{fontSize:10,fontWeight:700,color:"#c62828",letterSpacing:.5}}>DESIGN</span></div>
+          <div className="sec-body">
+            <div style={{marginBottom:10}}><div className="lbl">Product Specification (PS)</div>
+              {p.psDoc?<div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:"#e8f5e9",borderRadius:7,border:"1px solid #c8e6c9"}}>
+                <span style={{fontSize:18}}>📄</span>
+                <div style={{flex:1}}><div style={{fontSize:11,fontWeight:700,color:"var(--green)"}}>{p.psDoc.name}</div><div style={{fontSize:9,color:"var(--sub)"}}>{p.psDoc.date}</div></div>
+                <button onClick={()=>set("psDoc",null)} style={{background:"none",border:"none",color:"var(--red)",cursor:"pointer",fontSize:12}}>✕</button>
+              </div>:<div>
+                <label className="btn" style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"12px",background:"#fff3e0",border:"1.5px dashed var(--orange)",borderRadius:8,cursor:"pointer",fontSize:11,fontWeight:600,color:"var(--orange)"}}>
+                  <input type="file" accept=".pdf,.doc,.docx,.png,.jpg" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f){set("psDoc",{name:f.name,date:new Date().toLocaleDateString("pt-PT"),size:f.size})}e.target.value=""}}/>
+                  📎 Anexar PS
+                </label>
+                <div style={{marginTop:4,fontSize:9,color:"var(--sub)",textAlign:"center"}}>PDF, Word ou imagem</div>
+              </div>}
+            </div>
+            <div><div className="lbl">Notas Design</div><textarea value={p.designNotes} onChange={e=>set("designNotes",e.target.value)} placeholder="Estado da PS, observações do design..." rows={2} className="inp" style={{marginTop:3,resize:"vertical",lineHeight:1.4,fontSize:11}}/></div>
+          </div>
+        </div>}
         <div className="sec">
           <div className="sec-head" style={{background:"#f5f3ff"}}><span style={{fontSize:10,fontWeight:700,color:"var(--purple)",letterSpacing:.5}}>PROCUREMENT</span>{!addMode&&<button onClick={()=>setAddMode(true)} className="btn" style={{fontSize:9,padding:"3px 10px",background:"#ede7f6",color:"var(--purple)"}}>+ Fornecedor</button>}</div>
           <div className="sec-body">
-            <div style={{marginBottom:10}}><div className="lbl">Referência Interna Oasipor</div><input value={p.refInterna} onChange={e=>set("refInterna",e.target.value)} placeholder="OAS-XXX-000" className="inp" style={{marginTop:3,fontFamily:"monospace",fontWeight:700,color:"var(--brand)"}}/></div>
+            <div style={{marginBottom:10,position:"relative"}}>
+              <div className="lbl">Referência Interna</div>
+              <input value={p.refInterna} onChange={e=>{set("refInterna",e.target.value);setRefSearch(e.target.value)}} onFocus={()=>setRefSearch(p.refInterna||"")} onBlur={()=>setTimeout(()=>setRefSearch(""),200)} placeholder="Pesquisar por referência interna" className="inp" style={{marginTop:3,fontFamily:"monospace",fontWeight:700,color:"var(--brand)"}}/>
+              {refSearch&&CATALOGO.filter(c=>c.ref.toLowerCase().includes(refSearch.toLowerCase())||c.name.toLowerCase().includes(refSearch.toLowerCase())).length>0&&<div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:100,background:"#fff",border:"1px solid var(--border)",borderRadius:8,boxShadow:"0 6px 20px #0002",maxHeight:200,overflow:"auto",marginTop:2}}>
+                {CATALOGO.filter(c=>c.ref.toLowerCase().includes(refSearch.toLowerCase())||c.name.toLowerCase().includes(refSearch.toLowerCase())).map(c=><div key={c.ref} onClick={()=>{set("refInterna",c.ref);setRefSearch("")}} style={{padding:"8px 12px",cursor:"pointer",borderBottom:"1px solid #f0f0f0",fontSize:11}} onMouseEnter={e=>e.currentTarget.style.background="#f0f4ff"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <span style={{fontFamily:"monospace",fontWeight:700,color:"var(--brand)"}}>{c.ref}</span>
+                  <span style={{marginLeft:8,color:"var(--sub)"}}>{c.name}</span>
+                  <span style={{marginLeft:6,fontSize:9,color:"#bbb"}}>({c.group})</span>
+                </div>)}
+              </div>}
+            </div>
             {p.suppliers.length>0&&<div style={{border:"1px solid var(--border)",borderRadius:8,overflow:"hidden",marginBottom:8}}>
               <table><thead><tr style={{background:"#f8f9fa"}}>
                 {["Fornecedor","Ref.","€/un","Lead","MOQ",""].map((h,i)=><th key={i} style={{padding:"6px 8px",textAlign:i===2?"right":i===5?"right":"left",fontSize:8.5,fontWeight:700,color:"var(--sub)",textTransform:"uppercase",letterSpacing:.5,width:i===5?70:undefined}}>{h}</th>)}
@@ -193,11 +267,13 @@ function DetailPanel({product:init,onClose,onUpdate}){
               </div>
               <div style={{display:"flex",gap:6,marginTop:8}}><button onClick={addSup} className="btn" style={{background:"var(--purple)",color:"#fff"}}>✓ Adicionar</button><button onClick={()=>setAddMode(false)} className="btn" style={{background:"#f3f4f6",color:"var(--sub)"}}>Cancelar</button></div>
             </div>}
+            <div style={{marginTop:10}}><div className="lbl">Notas Procurement</div><textarea value={p.procNotes} onChange={e=>set("procNotes",e.target.value)} placeholder="Amostras pedidas, aguarda preço, contacto com fornecedor..." rows={2} className="inp" style={{marginTop:3,resize:"vertical",lineHeight:1.4,fontSize:11}}/></div>
           </div>
         </div>
       </div>
       <div style={{position:"sticky",bottom:0,background:"#fff",borderTop:"1px solid var(--border)",padding:"8px 16px",display:"flex",gap:6}}>
-        {p.status==="rascunho"&&<button onClick={()=>set("status","em_analise")} className="btn" style={{flex:1,background:"var(--brand)",color:"#fff"}}>◎ Iniciar Análise</button>}
+        {p.status==="rascunho"&&<button disabled={!p.productType||!p.deadline||p.needsSample===null} onClick={()=>set("status","todo")} className="btn" style={{flex:1,background:(!p.productType||!p.deadline||p.needsSample===null)?"#ccc":"var(--green)",color:"#fff",cursor:(!p.productType||!p.deadline||p.needsSample===null)?"not-allowed":"pointer"}}>✓ Confirmar e Enviar</button>}
+        {p.status==="todo"&&<button onClick={()=>set("status","em_analise")} className="btn" style={{flex:1,background:"var(--brand)",color:"#fff"}}>◎ Iniciar Análise</button>}
         {p.status==="em_analise"&&<button onClick={()=>set("status","enviado")} className="btn" style={{flex:1,background:"var(--purple)",color:"#fff"}}>↑ Enviar ao Projeto</button>}
         {p.status==="enviado"&&<div style={{flex:1,textAlign:"center",padding:8,fontSize:12,fontWeight:600,color:"var(--purple)",background:"#ede7f6",borderRadius:7}}>⏳ Aguarda feedback do projeto</div>}
         {p.status==="pendente"&&<button onClick={()=>set("status","em_analise")} className="btn" style={{flex:1,background:"var(--brand)",color:"#fff"}}>↺ Nova Análise — Sugerir alternativa</button>}
@@ -230,27 +306,27 @@ function App(){
     XLSX.utils.sheet_add_aoa(ws,[["Gerado em "+dateStr]],{origin:"A2"});
 
     // Row 4-5: Stat cards
-    const counts={rascunho:0,em_analise:0,enviado:0,pendente:0,aprovado:0,rejeitado:0};
+    const counts={rascunho:0,todo:0,em_analise:0,enviado:0,pendente:0,aprovado:0,rejeitado:0};
     filtered.forEach(p=>counts[p.status]=(counts[p.status]||0)+1);
-    const statLabels=view==="ativos"?["Total","Rascunho","Em Análise","Enviado","Pendente"]:view==="aprovados"?["Aprovados"]:["Rejeitados"];
-    const statVals=view==="ativos"?[filtered.length,counts.rascunho,counts.em_analise,counts.enviado,counts.pendente]:view==="aprovados"?[counts.aprovado]:[counts.rejeitado];
+    const statLabels=view==="ativos"?["Total","Rascunho","To Do","Em Análise","Enviado","Pendente"]:view==="aprovados"?["Aprovados"]:["Rejeitados"];
+    const statVals=view==="ativos"?[filtered.length,counts.rascunho,counts.todo,counts.em_analise,counts.enviado,counts.pendente]:view==="aprovados"?[counts.aprovado]:[counts.rejeitado];
     XLSX.utils.sheet_add_aoa(ws,[statVals],{origin:"A4"});
     XLSX.utils.sheet_add_aoa(ws,[statLabels],{origin:"A5"});
 
     // Row 7: Headers
-    const hdrs=["Empresa","Sugerido por","Projeto/Cliente","Nº Projeto","Pack","Ref. Pack","Produto","Amostras","Qtd","Estado","Fornecedor","Ref. Interna","€/un","Solicitado","Deadline","Dias"];
+    const hdrs=["Empresa","Sugerido por","Projeto/Cliente","Nº Projeto","Pack","Ref. Pack","Produto","Amostras","Qtd","Tipo","Estado","Fornecedor","Ref. Interna","€/un","Solicitado","Deadline","Dias"];
     XLSX.utils.sheet_add_aoa(ws,[hdrs],{origin:"A7"});
 
     // Row 8+: Data
     const rows=filtered.map(p=>{
       const sel=p.selectedSupplier>=0?p.suppliers[p.selectedSupplier]:null;
       const d=daysUntil(p.deadline);
-      return[p.company,p.suggestedBy,p.client,p.nProjeto,p.pack,p.refPack,p.name,p.needsSample===true?"Sim":p.needsSample===false?"Não":"",p.needsSample!==null?p.qty:"",sMap[p.status]?.label||p.status,sel?.name||"",p.refInterna,sel?.price||"",p.created,p.deadline,d!=null?d:""];
+      return[p.company,p.suggestedBy,p.client,p.nProjeto,p.pack,p.refPack,p.name,p.needsSample===true?"Sim":p.needsSample===false?"Não":"",p.needsSample!==null?p.qty:"",p.productType==="procurement"?"Procurement":p.productType==="interno"?"Produto Interno":"",sMap[p.status]?.label||p.status,sel?.name||"",p.refInterna,sel?.price||"",p.created,p.deadline,d!=null?d:""];
     });
     XLSX.utils.sheet_add_aoa(ws,rows,{origin:"A8"});
 
     // Column widths
-    ws["!cols"]=[{wch:16},{wch:16},{wch:22},{wch:16},{wch:22},{wch:14},{wch:30},{wch:10},{wch:6},{wch:14},{wch:18},{wch:14},{wch:9},{wch:12},{wch:12},{wch:8}];
+    ws["!cols"]=[{wch:16},{wch:16},{wch:22},{wch:16},{wch:22},{wch:14},{wch:30},{wch:10},{wch:6},{wch:16},{wch:14},{wch:18},{wch:14},{wch:9},{wch:12},{wch:12},{wch:8}];
 
     XLSX.utils.book_append_sheet(wb,ws,"Produtos Sugeridos");
     XLSX.writeFile(wb,"produtos_sugeridos.xlsx");
@@ -275,6 +351,7 @@ function App(){
   const stats=[
     {l:"Total",v:products.length,c:"var(--brand)",f:"total"},
     {l:"Rascunho",v:products.filter(p=>p.status==="rascunho").length,c:"#78909c",f:"rascunho"},
+    {l:"To Do",v:products.filter(p=>p.status==="todo").length,c:"#0097a7",f:"todo"},
     {l:"Em Análise",v:products.filter(p=>p.status==="em_analise").length,c:"var(--brand)",f:"em_analise"},
     {l:"Enviado",v:products.filter(p=>p.status==="enviado").length,c:"var(--purple)",f:"enviado"},
     {l:"Pendente",v:products.filter(p=>p.status==="pendente").length,c:"var(--orange)",f:"pendente"},
@@ -327,7 +404,7 @@ function App(){
       <span style={{fontSize:10,color:"var(--sub)"}}>{filtered.length} resultados</span>
     </div>
 
-    <div style={{padding:"4px 24px 24px"}}><div style={{background:"var(--card)",borderRadius:"var(--r)",overflow:"hidden",border:"1.5px solid var(--border)"}}><div style={{overflowX:"auto"}}><table style={{minWidth:1560}}>
+    <div style={{padding:"4px 24px 24px"}}><div style={{background:"var(--card)",borderRadius:"var(--r)",overflow:"hidden",border:"1.5px solid var(--border)"}}><div style={{overflowX:"auto"}}><table style={{minWidth:1630}}>
       <thead><tr>
         <THS l="Empresa" f="company" w="85px"/>
         <THS l="Sugerido por" f="suggestedBy" w="100px"/>
@@ -340,6 +417,7 @@ function App(){
         <THS l="Tipo" f="type"/>
         <THS l="Amostras" f="needsSample" center w="58px"/>
         <THS l="Qtd" f="qty" center w="36px"/>
+        <THS l="Tipo" f="productType" w="70px"/>
         <THS l="Estado" f="status"/>
         <THS l="Fornecedor" f="supplier"/>
         <THS l="Ref. Interna" f="refInterna" w="90px"/>
@@ -362,6 +440,7 @@ function App(){
           <TD><span style={{fontSize:10,color:"var(--brand)",fontWeight:600}}>{p.type}</span></TD>
           <TD center><span style={{fontSize:10,fontWeight:600,color:p.needsSample===true?"var(--orange)":p.needsSample===false?"var(--green)":"#d0d0d0"}}>{p.needsSample===true?"Sim":p.needsSample===false?"Não":"—"}</span></TD>
           <TD center>{p.needsSample!==null?<span style={{fontSize:11,fontWeight:700}}>{p.qty}</span>:<span style={{color:"#d0d0d0",fontSize:10}}>—</span>}</TD>
+          <TD>{p.productType?<span style={{fontSize:8,fontWeight:700,padding:"2px 6px",borderRadius:3,background:p.productType==="procurement"?"#e3f2fd":"#f3e5f5",color:p.productType==="procurement"?"var(--brand)":"var(--purple)"}}>{p.productType==="procurement"?"PROC":"INTERNO"}</span>:<span style={{color:"#d0d0d0",fontSize:10}}>—</span>}</TD>
           <TD><Badge status={p.status}/></TD>
           <TD>{selSup?<span style={{fontSize:10,fontWeight:600}}>{selSup.name}</span>:<span style={{fontSize:9,color:p.suppliers.length?"var(--orange)":"#d0d0d0"}}>{p.suppliers.length?p.suppliers.length+" opções":"—"}</span>}</TD>
           <TD>{p.refInterna?<span style={{fontSize:9.5,fontFamily:"monospace",color:"var(--brand)",fontWeight:700}}>{p.refInterna}</span>:<span style={{color:"#d0d0d0",fontSize:10}}>—</span>}</TD>
